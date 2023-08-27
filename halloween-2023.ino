@@ -363,10 +363,9 @@ bool setup_camera(framesize_t frameSize, pixformat_t PIXEL_FORMAT)
 
     sensor_t *sensor = esp_camera_sensor_get();
     sensor->set_framesize(sensor, frameSize);
-    sensor->set_gain_ctrl(sensor, 1);                       // auto gain on
-    sensor->set_exposure_ctrl(sensor, 1);                   // auto exposure on
-    sensor->set_awb_gain(sensor, 1);                        // Auto White Balance enable (0 or 1)
-    sensor->set_brightness(sensor, 1);
+    sensor->set_brightness(sensor, 2);
+    sensor->set_contrast(sensor, 2);
+    sensor->set_special_effect(sensor, 2);
 
     return ok;
 }
