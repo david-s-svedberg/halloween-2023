@@ -32,11 +32,11 @@
 #define VIEWPORT_PIXELS WIDTH / BLOCK_SIZE // 320/4 = 80 Positions to look at in left to right view plane [-------X------] X is where motion exists
 #define STEPS_PER_DEGREE 6                 // How many degrees per block to turn 11.37
 #define STEPS_PER_SECOND 4096              // How fast the stepper turns
-#define TOTAL_STEPS (STEPS_PER_DEGREE * 360)               // How fast the stepper turns
-#define FOV_DEGREES 78               // How fast the stepper turns
-#define FOV_TOTAL_STEPS (STEPS_PER_DEGREE * FOV_DEGREES)               // How fast the stepper turns
+#define TOTAL_STEPS (STEPS_PER_DEGREE * 360)
+#define FOV_DEGREES 78
+#define FOV_TOTAL_STEPS (STEPS_PER_DEGREE * FOV_DEGREES)
 
-#define ACCELLERATION_STEPS_PER_SECOND 256 // How quickly the movement accellerates
+#define ACCELLERATION_STEPS_PER_SECOND 1000 // How quickly the movement accellerates
 #define FLASH_PIN 4                        // Pin of ESP32 Flash (Led)
 #define FLASH_MODE 0                       // 0 = 0ff , 1 = flash, 2 = steady
 
@@ -50,48 +50,49 @@ const uint8_t MOTOR_IN1_PIN = 12;
 const uint8_t MOTOR_IN2_PIN = 13;
 const uint8_t MOTOR_IN3_PIN = 15;
 const uint8_t MOTOR_IN4_PIN = 14;
-int moveTo = 0;
+int targetPos = 0;
 int currentPos = 0;
 
 TinyStepper_28BYJ_48 stepper;
 
 // Scheduler
 Scheduler tasks;
+void moveStepper();
+void incrementStepper();
 
-void moveSteppers();
-Task tmvStepper(250, TASK_FOREVER, &moveSteppers, &tasks, true);
+Task tmvStepper(100, TASK_FOREVER, &moveStepper, &tasks, true);
 
-// === 1 =======================================
-void moveSteppers()
+#define MAX_INCREMENT_STEP (100)
+
+void incrementStepper()
 {
+  int diff = abs(currentPos - targetPos);
+  int incrementPosition = 0;
+  
+  if(diff > 0) {
+    if(diff < MAX_INCREMENT_STEP) {
+      incrementPosition = targetPos;
+    }
+    else if (currentPos > targetPos) { 
+      incrementPosition = currentPos - MAX_INCREMENT_STEP;
+    }
+    else {
+      incrementPosition = currentPos + MAX_INCREMENT_STEP;      
+    }
+    stepper.moveToPositionInSteps(incrementPosition);      
+    currentPos = incrementPosition;
+  }
+}
 
-    // Stepper Movement - Move by steps so we capture more motion frames.
-    if (currentPos > moveTo)
-    {
-        currentPos -= ceil((currentPos - moveTo) / 2);
-        if (ceil((currentPos - moveTo) / 2) == 0)
-            currentPos = moveTo;
-    }
-    else if (currentPos < moveTo)
-    {
-        currentPos += floor((moveTo - currentPos) / 2);
-        if (floor((moveTo - currentPos) / 2) == 0)
-            currentPos = moveTo;
-    }
-    else
-    {
-        currentPos = moveTo;
-    }
-#if INFO
-    if (currentPos != moveTo)
-    {
-        Serial.print("MOVETO: ");
-        Serial.print(moveTo);
-        Serial.print(" CURRENT: ");
-        Serial.println(currentPos);
-    }
-#endif
-    stepper.moveToPositionInSteps(currentPos);
+void moveStepper()
+{
+  int diff = abs(currentPos - targetPos);
+  int incrementPosition = 0;
+  
+  if(diff > 0) {  
+    stepper.moveToPositionInSteps(targetPos);      
+    currentPos = targetPos;
+  }
 }
 
 long viewPortToRegion(long mv[])
@@ -159,12 +160,6 @@ void setup()
     stepper.connectToPins(MOTOR_IN1_PIN, MOTOR_IN2_PIN, MOTOR_IN3_PIN, MOTOR_IN4_PIN);
     stepper.setSpeedInStepsPerSecond(STEPS_PER_SECOND);
     stepper.setAccelerationInStepsPerSecondPerSecond(ACCELLERATION_STEPS_PER_SECOND);
-    // on startup move the full field of view.
-    // stepper.moveToPositionInSteps(0);
-    // stepper.moveToPositionInSteps(TOTAL_STEPS);
-    // stepper.moveToPositionInSteps(0);
-    // stepper.moveToPositionInSteps(FOV_TOTAL_STEPS);
-    // stepper.moveToPositionInSteps(0);
     Serial.println("End Setup...");
     tasks.startNow();
 }
@@ -278,8 +273,8 @@ bool motion_detect()
 
     // Change screen data into linear (left to right) expression of data.
 
-    // moveTo = ((10 - viewPortToRegion(motionView)) * 10) * STEPS_PER_DEGREE;
-    moveTo = viewPortToRegion(motionView) * (FOV_TOTAL_STEPS / 10);
+    // targetPos = ((10 - viewPortToRegion(motionView)) * 10) * STEPS_PER_DEGREE;
+    targetPos = viewPortToRegion(motionView) * (FOV_TOTAL_STEPS / 10);
 
 // Display updates for informational purposes.
 #if INFO
@@ -300,8 +295,8 @@ bool motion_detect()
     Serial.print(" out of ");
     Serial.println(blocks);
 
-    Serial.print("MoveTo:");
-    Serial.println(moveTo);
+    Serial.print("targetPos:");
+    Serial.println(targetPos);
 #endif
     return (1.0 * changes / blocks) > IMAGE_DIFF_THRESHOLD;
 }
