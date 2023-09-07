@@ -45,10 +45,8 @@ const float diff_threshold_procentage = 0.03;
 const float total_diff_threshold = (float)total_max_diff * diff_threshold_procentage;
 const float region_diff_threshold = (float)region_max_diff * diff_threshold_procentage;
 
-const uint16_t full_frame_size = WIDTH * HEIGHT;
-
-uint8_t current_full_frame[full_frame_size] = {0};
-uint8_t previous_full_frame[full_frame_size] = {0};
+camera_fb_t* current_fb = NULL;
+camera_fb_t* previous_fb = NULL;
 
 frame_diff_t m_frame_diff;
 
@@ -173,8 +171,7 @@ void moveStepper()
   }
   // Serial.println("Exit moveStepper");
 }
-camera_fb_t* current_fb = NULL;
-camera_fb_t* previous_fb = NULL;
+
 static bool update_frames()
 {
   // Serial.println("Enter update_frames");
